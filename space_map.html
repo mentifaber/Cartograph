@@ -2306,8 +2306,8 @@ function showBgStarPanel(idx){
 function clearScene(){
   allObjects=[];labels=[];glowMeshes=[];planetAnimData=[];moonAnimData=[];bgStarMesh=null;
   while(scene.children.length>0)scene.remove(scene.children[0]);
-  scene.add(new THREE.AmbientLight(0x111122,0.35));
-  const pl=new THREE.PointLight(0xfff4e0,1.9,0);pl.position.set(0,0,0);scene.add(pl);
+  scene.add(new THREE.AmbientLight(0x151828,0.55));
+  const pl=new THREE.PointLight(0xfff4e0,0.9,0);pl.position.set(0,0,0);scene.add(pl);
   // Vertex-colored + twinkling shader background stars
   if(bgStarData.length){
     const bg=new THREE.BufferGeometry();
@@ -2418,6 +2418,10 @@ function buildStars(){
   clearScene();
   controls.minDistance=0.05;controls.maxDistance=1500;
   camera.position.set(0,8,20);controls.target.set(0,0,0);
+  if(bloomPass)bloomPass.strength=0.08; // stars = subtle bloom only
+
+  const ptPos=[],ptCol=[],ptSz=[];
+
   STARS.forEach(s=>{
     const pos=starXYZ(s.ra,s.dec,s.dist);
     const col=s.col?parseInt(s.col.replace('#',''),16):0xffffff;
@@ -2425,23 +2429,49 @@ function buildStars(){
     const isWD=s.type&&(s.type.includes('White Dwarf')||s.type.includes('DA'));
     const isGiant=s.type&&(s.type.includes('Giant')||s.type.includes('Supergiant')||s.type.includes('Hypergiant'));
     const catTag=isBH?'bh':isWD?'wd':isGiant?'giant':'star';
-    const rad=isBH?1.2:(isWD?0.4:Math.max(0.3,Math.min(2.5,(s.sz||1)*0.55)));
-    const m=sphere(rad,col);
-    m.position.copy(pos);
-    m.userData={name:s.name,type:`Star (${s.type})`,catTag,desc:s.desc||'',stats:s.stats||null};
-    scene.add(m);allObjects.push(m);
-    const gs=isBH?6:(isGiant?10:(s.sz&&s.sz>1.5?8:3.5));
-    const gc=isBH?'rgba(100,0,150,1)':`rgba(${(col>>16)&0xff},${(col>>8)&0xff},${col&0xff},1)`;
-    addGlow(gc,gs,pos);
-    const lbl=makeLabel(s.name,'#ffffcc');lbl.position.set(pos.x,pos.y+rad+0.9,pos.z);
-    lbl.userData={catTag};labels.push(lbl);scene.add(lbl);m.userData._lbl=lbl;
+
+    // Visual point — shader-rendered, no lightbulb effect
+    const vizSz=isBH?5.5:(isGiant?7.5:(s.sz&&s.sz>1.5?5.5:3.8));
+    ptPos.push(pos.x,pos.y,pos.z);
+    ptSz.push(vizSz);
+    ptCol.push(((col>>16)&0xff)/255,((col>>8)&0xff)/255,(col&0xff)/255);
+
+    // Invisible click target (transparent sphere; raycasting still works)
+    const clickR=Math.max(1.0,vizSz*0.28);
+    const ct=new THREE.Mesh(
+      new THREE.SphereGeometry(clickR,6,6),
+      new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false})
+    );
+    ct.position.copy(pos);
+    ct.userData={name:s.name,type:`Star (${s.type})`,catTag,desc:s.desc||'',stats:s.stats||null};
+    scene.add(ct);allObjects.push(ct);
+
+    const lbl=makeLabel(s.name,'#ffffcc');
+    lbl.position.set(pos.x,pos.y+clickR+0.9,pos.z);
+    lbl.userData={catTag};labels.push(lbl);scene.add(lbl);ct.userData._lbl=lbl;
   });
-  const sunM=sphere(1.2,0xffee44,0xffcc00);
+
+  // All catalog stars as one shader Points call — clean, crisp, no halos
+  const stGeo=new THREE.BufferGeometry();
+  stGeo.setAttribute('position',new THREE.Float32BufferAttribute(ptPos,3));
+  stGeo.setAttribute('aColor',  new THREE.Float32BufferAttribute(ptCol,3));
+  stGeo.setAttribute('aSize',   new THREE.Float32BufferAttribute(ptSz,1));
+  scene.add(new THREE.Points(stGeo,new THREE.ShaderMaterial({
+    uniforms:starUniforms,vertexShader:STAR_VERT,fragmentShader:STAR_FRAG,
+    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending
+  })));
+
+  // Sun — basic unlit disc (no PointLight shading lightbulb)
+  const sunM=new THREE.Mesh(
+    new THREE.SphereGeometry(1.2,18,18),
+    new THREE.MeshBasicMaterial({color:0xffee44})
+  );
   sunM.userData={name:'Sun',type:'Star (G2V)',catTag:'star',desc:'G2V main-sequence yellow dwarf. 4.6 Gyr old. Surface temp 5,778 K.',stats:{'Mass':'1 M☉','Radius':'696,000 km','Temp':'5,778 K','Age':'4.6 Gyr'}};
   scene.add(sunM);allObjects.push(sunM);
-  addGlow('rgba(255,200,50,1)',9,new THREE.Vector3(0,0,0));
-  const sunL=makeLabel('Sun','#ffff88');sunL.position.set(0,2.5,0);
+  addGlow('rgba(255,210,80,1)',4.5,new THREE.Vector3(0,0,0));
+  const sunL=makeLabel('Sun','#ffff88');sunL.position.set(0,2.2,0);
   sunL.userData={catTag:'star'};labels.push(sunL);scene.add(sunL);sunM.userData._lbl=sunL;
+
   updateScale('Stellar map — compressed: 4 ly (Proxima) to 163,000 ly (R136a1)');
   updateSidebar();
 }
@@ -2906,6 +2936,9 @@ function setMode(mode){
   closePanel();visibleCats.clear();searchIndex=null;
   const tc=document.getElementById('time-ctrl');
   if(tc)tc.style.display=mode==='solar'?'block':'none';
+  // Per-mode bloom defaults (buildStars sets its own inside the function)
+  const bloomByMode={solar:0.06,stars:0.08,exoplanets:0.10,blackholes:0.20,nebulae:0.18,galaxy:0.22,universe:0.20};
+  if(bloomPass&&bloomEnabled)bloomPass.strength=bloomByMode[mode]??0.18;
   switch(mode){
     case 'solar':buildSolar();break;case 'stars':buildStars();break;
     case 'exoplanets':buildExoplanets();break;case 'blackholes':buildBlackholes();break;
