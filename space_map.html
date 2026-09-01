@@ -7,6 +7,15 @@
 <title>Stellar Observatory — Deep Space Command</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<!-- Preload all CDN scripts in parallel — browser fetches all 8 simultaneously -->
+<link rel="preload" as="script" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js">
+<link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js">
+<link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/shaders/CopyShader.js">
+<link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/shaders/LuminosityHighPassShader.js">
+<link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/EffectComposer.js">
+<link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/ShaderPass.js">
+<link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/RenderPass.js">
+<link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/UnrealBloomPass.js">
 <style>
 :root{
   --void:#000005;
@@ -212,17 +221,64 @@ body::after{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;
 </head>
 <body>
 
-<div id="ls" style="position:fixed;inset:0;z-index:9999;background:#000005;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Space Mono',monospace;transition:opacity .6s;">
-  <div style="font-family:'Orbitron',monospace;font-size:11px;letter-spacing:4px;color:#00d4c0;text-shadow:0 0 20px rgba(0,212,192,.6);margin-bottom:18px;">DEEP SPACE COMMAND</div>
-  <div style="font-size:8px;letter-spacing:2px;color:#1e4060;margin-bottom:28px;">STELLAR OBSERVATORY // v4.0</div>
-  <div style="width:180px;height:1px;background:rgba(0,210,190,.14);position:relative;overflow:visible;">
-    <div id="ls-bar" style="position:absolute;top:-1px;left:0;height:3px;background:linear-gradient(90deg,transparent,#00d4c0,transparent);animation:lspulse 1.4s ease-in-out infinite;width:60%;border-radius:2px;"></div>
-  </div>
-  <div id="ls-msg" style="font-size:7px;letter-spacing:2px;color:#1e4060;margin-top:16px;">INITIALIZING RENDERER</div>
-</div>
 <style>
-@keyframes lspulse{0%{left:-60%}100%{left:100%}}
+#ls{position:fixed;inset:0;z-index:9999;background:#000005;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:0;transition:opacity .7s ease;font-family:'Space Mono',monospace;}
+#ls-logo{font-family:'Orbitron',monospace;font-size:clamp(11px,3vw,15px);font-weight:900;
+  letter-spacing:.35em;color:#00d4c0;text-shadow:0 0 28px rgba(0,212,192,.55),0 0 60px rgba(0,212,192,.2);
+  margin-bottom:8px;text-align:center;}
+#ls-sub{font-size:clamp(7px,1.5vw,9px);letter-spacing:.28em;color:#1e4060;margin-bottom:36px;text-align:center;}
+.ls-phases{display:flex;gap:12px;margin-bottom:20px;align-items:center;}
+.ls-pd{width:6px;height:6px;border-radius:50%;background:#0a1a2a;border:1px solid #1e4060;transition:all .3s;}
+.ls-pd.done{background:#00d4c0;border-color:#00d4c0;box-shadow:0 0 6px rgba(0,212,192,.5);}
+.ls-pd.cur{background:transparent;border-color:#00d4c0;box-shadow:0 0 10px rgba(0,212,192,.4);
+  animation:ls-pulse .9s ease-in-out infinite;}
+@keyframes ls-pulse{0%,100%{box-shadow:0 0 6px rgba(0,212,192,.3);}50%{box-shadow:0 0 14px rgba(0,212,192,.8);}}
+.ls-phase-labels{display:flex;gap:12px;margin-bottom:22px;}
+.ls-pl{font-size:6px;letter-spacing:.14em;color:#1e3050;width:52px;text-align:center;transition:color .3s;text-transform:uppercase;}
+.ls-pl.cur{color:#6ea8c8;}.ls-pl.done{color:#00d4c0;}
+#ls-track{width:min(260px,60vw);height:2px;background:rgba(0,210,190,.1);position:relative;overflow:hidden;border-radius:1px;}
+#ls-fill{position:absolute;left:0;top:0;height:100%;width:0%;
+  background:linear-gradient(90deg,#003a38,#00d4c0,#00f5e0);transition:width .5s ease;border-radius:1px;}
+#ls-glow{position:absolute;right:0;top:-3px;width:8px;height:8px;border-radius:50%;
+  background:#00d4c0;box-shadow:0 0 12px #00d4c0,0 0 24px rgba(0,212,192,.6);opacity:0;transition:opacity .3s;}
+#ls-row{display:flex;justify-content:space-between;width:min(260px,60vw);margin-top:10px;}
+#ls-msg{font-size:clamp(7px,1.5vw,8px);letter-spacing:.2em;color:#2a5070;}
+#ls-pct{font-size:clamp(7px,1.5vw,8px);letter-spacing:.1em;color:#00d4c0;}
+#ls-corner{position:absolute;bottom:32px;font-size:6px;letter-spacing:.2em;color:#0d2030;text-align:center;}
 </style>
+<div id="ls">
+  <div id="ls-logo">DEEP SPACE COMMAND</div>
+  <div id="ls-sub">STELLAR OBSERVATORY // v4.0</div>
+  <div class="ls-phases">
+    <div class="ls-pd cur" id="lsp0"></div>
+    <div class="ls-pd" id="lsp1"></div>
+    <div class="ls-pd" id="lsp2"></div>
+    <div class="ls-pd" id="lsp3"></div>
+  </div>
+  <div class="ls-phase-labels">
+    <div class="ls-pl cur" id="lsl0">ASSETS</div>
+    <div class="ls-pl" id="lsl1">SHADERS</div>
+    <div class="ls-pl" id="lsl2">SCENE</div>
+    <div class="ls-pl" id="lsl3">ONLINE</div>
+  </div>
+  <div id="ls-track"><div id="ls-fill"></div><div id="ls-glow"></div></div>
+  <div id="ls-row"><div id="ls-msg">LOADING ASSETS</div><div id="ls-pct">0%</div></div>
+  <div id="ls-corner">MENTIFABER · CARTOGRAPH</div>
+</div>
+<script>
+window._lsPhase=function(step,msg,pct){
+  var dots=document.querySelectorAll('.ls-pd'),lbls=document.querySelectorAll('.ls-pl');
+  dots.forEach(function(d,i){d.className='ls-pd'+(i<step?' done':i===step?' cur':'');});
+  lbls.forEach(function(l,i){l.className='ls-pl'+(i<step?' done':i===step?' cur':'');});
+  var m=document.getElementById('ls-msg'),p=document.getElementById('ls-pct'),
+      f=document.getElementById('ls-fill'),g=document.getElementById('ls-glow');
+  if(m)m.textContent=msg;
+  if(p)p.textContent=pct+'%';
+  if(f){f.style.width=pct+'%';if(g)g.style.opacity=pct>0?'1':'0';}
+};
+window._lsPhase(0,'LOADING ASSETS',5);
+</script>
 
 <div id="ui-top">
   <div id="title">STELLAR OBS<span>DEEP SPACE COMMAND  //  v4.0</span></div>
@@ -326,16 +382,26 @@ body::after{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;
   <div class="kh-row"><span class="kh-k">?</span><span>This reference</span></div>
 </div>
 
-<!-- CDN: Three.js r134 + post-processing chain -->
+<!-- CDN: Three.js r134 + post-processing chain (all preloaded in parallel above) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<script>window._lsPhase&&window._lsPhase(0,'LOADING CONTROLS',18);</script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
+<script>window._lsPhase&&window._lsPhase(1,'LOADING SHADERS',34);</script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/shaders/CopyShader.js"></script>
+<script>window._lsPhase&&window._lsPhase(1,'LOADING SHADERS',46);</script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script>window._lsPhase&&window._lsPhase(1,'LOADING POST-FX',56);</script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script>window._lsPhase&&window._lsPhase(1,'LOADING POST-FX',64);</script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script>window._lsPhase&&window._lsPhase(1,'LOADING POST-FX',72);</script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/RenderPass.js"></script>
+<script>window._lsPhase&&window._lsPhase(2,'LOADING BLOOM',80);</script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script>window._lsPhase&&window._lsPhase(2,'BUILDING SCENE',88);</script>
 <script>
+// ── Device capability detection ──
+const isMobile=('ontouchstart' in window)||navigator.maxTouchPoints>0||window.innerWidth<900;
 // ══════════════════════════════════════════════
 // STARS — within ~50 ly + notable far objects
 // ══════════════════════════════════════════════
@@ -2161,7 +2227,7 @@ function initBgStars(){
   let s=12345;
   function rnd(){s=(s*1664525+1013904223)&0xffffffff;return(s>>>0)/4294967296;}
   bgStarData=[];
-  for(let i=0;i<10000;i++){
+  for(let i=0,N=isMobile?3500:10000;i<N;i++){
     const r=2000+rnd()*3000,t=rnd()*Math.PI*2,p=Math.acos(2*rnd()-1);
     const x=r*Math.sin(p)*Math.cos(t),y=r*Math.cos(p),z=r*Math.sin(p)*Math.sin(t);
     const cls=pick(rnd());
@@ -2765,8 +2831,8 @@ function init(){
   camera=new THREE.PerspectiveCamera(55,window.innerWidth/window.innerHeight,0.001,50000000);
   camera.position.set(0,40,100);
 
-  renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer=new THREE.WebGLRenderer({antialias:!isMobile,preserveDrawingBuffer:true});
+  renderer.setPixelRatio(isMobile?1:Math.min(window.devicePixelRatio,2));
   renderer.setSize(window.innerWidth,window.innerHeight);
   renderer.domElement.style.pointerEvents='all';
   document.getElementById('canvas-wrap').appendChild(renderer.domElement);
@@ -2776,13 +2842,15 @@ function init(){
   controls.autoRotateSpeed=0.4;controls.enableZoom=true;controls.enablePan=true;
   controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};
 
-  // Post-processing (bloom)
+  // Post-processing (bloom) — half-res on mobile to save fill-rate
+  if(window._lsPhase)window._lsPhase(2,'COMPILING SHADERS',93);
   try{
+    const bW=isMobile?Math.floor(window.innerWidth/2):window.innerWidth;
+    const bH=isMobile?Math.floor(window.innerHeight/2):window.innerHeight;
     composer=new THREE.EffectComposer(renderer);
     composer.addPass(new THREE.RenderPass(scene,camera));
-    bloomPass=new THREE.UnrealBloomPass(
-      new THREE.Vector2(window.innerWidth,window.innerHeight),
-      0.5,0.4,0.08);
+    bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(bW,bH),
+      isMobile?0.35:0.5, isMobile?0.5:0.4, 0.08);
     composer.addPass(bloomPass);
   }catch(err){
     console.warn('Bloom post-processing unavailable:',err.message);
@@ -2803,6 +2871,7 @@ function init(){
   window.addEventListener('keydown',handleKeyDown);
   document.getElementById('search').addEventListener('keydown',e=>{if(e.key==='Escape')closeSearch();});
 
+  if(window._lsPhase)window._lsPhase(2,'BUILDING SCENE',96);
   lastFrameTime=performance.now()*.001;
   initBgStars();
   setMode('stars');
@@ -2811,8 +2880,9 @@ function init(){
   const total=STARS.length+PLANETS.length+EXOPLANETS.length+BLACKHOLES.length+
     SUPERNOVAE_OBJ.length+NEBULAE.length+CLUSTERS.length+PULSARS.length+GALAXY.length+DEEP_UNI.length;
   document.getElementById('obj-count').textContent=total.toLocaleString()+' objects · 10k bg stars';
+  if(window._lsPhase)window._lsPhase(3,'ONLINE',100);
   const ls=document.getElementById('ls');
-  if(ls){ls.style.opacity='0';setTimeout(()=>ls.remove(),650);}
+  if(ls){setTimeout(()=>{ls.style.opacity='0';setTimeout(()=>ls.remove(),700);},400);}
 }
 init();
 
