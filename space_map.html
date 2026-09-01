@@ -2844,64 +2844,69 @@ function animate(){
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 function init(){
+  // Step 1: core renderer/scene/camera — fast
   scene=new THREE.Scene();scene.background=new THREE.Color(0x000008);
   camera=new THREE.PerspectiveCamera(55,window.innerWidth/window.innerHeight,0.001,50000000);
   camera.position.set(0,40,100);
-
   renderer=new THREE.WebGLRenderer({antialias:!isMobile,preserveDrawingBuffer:true});
   renderer.setPixelRatio(isMobile?1:Math.min(window.devicePixelRatio,2));
   renderer.setSize(window.innerWidth,window.innerHeight);
   renderer.domElement.style.pointerEvents='all';
   document.getElementById('canvas-wrap').appendChild(renderer.domElement);
-
   controls=new THREE.OrbitControls(camera,renderer.domElement);
   controls.enableDamping=true;controls.dampingFactor=0.08;
   controls.autoRotateSpeed=0.4;controls.enableZoom=true;controls.enablePan=true;
   controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};
-
-  // Post-processing (bloom) — half-res on mobile to save fill-rate
   if(window._lsPhase)window._lsPhase(2,'COMPILING SHADERS',93);
-  try{
-    const bW=isMobile?Math.floor(window.innerWidth/2):window.innerWidth;
-    const bH=isMobile?Math.floor(window.innerHeight/2):window.innerHeight;
-    composer=new THREE.EffectComposer(renderer);
-    composer.addPass(new THREE.RenderPass(scene,camera));
-    bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(bW,bH),
-      isMobile?0.35:0.5, isMobile?0.5:0.4, 0.08);
-    composer.addPass(bloomPass);
-  }catch(err){
-    console.warn('Bloom post-processing unavailable:',err.message);
-    composer=null;bloomPass=null;
-    document.getElementById('bloom-btn').style.opacity='0.3';
-  }
-
-  raycaster=new THREE.Raycaster();
-  raycaster.params.Points={threshold:2};mouse=new THREE.Vector2();
-
-  renderer.domElement.addEventListener('click',onPointerDown);
-  renderer.domElement.addEventListener('touchend',e=>{
-    if(e.changedTouches&&e.changedTouches.length===1){
-      const t=e.changedTouches[0];onPointerDown({clientX:t.clientX,clientY:t.clientY});
+  // Yield so 93% actually repaints before shader compilation blocks
+  requestAnimationFrame(function(){requestAnimationFrame(function(){
+    // Step 2: bloom post-processing (shader compilation — heaviest GPU hit)
+    try{
+      const bW=isMobile?Math.floor(window.innerWidth/2):window.innerWidth;
+      const bH=isMobile?Math.floor(window.innerHeight/2):window.innerHeight;
+      composer=new THREE.EffectComposer(renderer);
+      composer.addPass(new THREE.RenderPass(scene,camera));
+      bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(bW,bH),
+        isMobile?0.35:0.5, isMobile?0.5:0.4, 0.08);
+      composer.addPass(bloomPass);
+    }catch(err){
+      console.warn('Bloom post-processing unavailable:',err.message);
+      composer=null;bloomPass=null;
+      document.getElementById('bloom-btn').style.opacity='0.3';
     }
-  });
-  window.addEventListener('resize',onResize);
-  window.addEventListener('keydown',handleKeyDown);
-  document.getElementById('search').addEventListener('keydown',e=>{if(e.key==='Escape')closeSearch();});
-
-  if(window._lsPhase)window._lsPhase(2,'BUILDING SCENE',96);
-  lastFrameTime=performance.now()*.001;
-  initBgStars();
-  setMode('stars');
-  animate();
-
-  const total=STARS.length+PLANETS.length+EXOPLANETS.length+BLACKHOLES.length+
-    SUPERNOVAE_OBJ.length+NEBULAE.length+CLUSTERS.length+PULSARS.length+GALAXY.length+DEEP_UNI.length;
-  document.getElementById('obj-count').textContent=total.toLocaleString()+' objects · 10k bg stars';
-  if(window._lsPhase)window._lsPhase(3,'ONLINE',100);
-  const ls=document.getElementById('ls');
-  if(ls){setTimeout(()=>{ls.style.opacity='0';setTimeout(()=>ls.remove(),700);},400);}
+    raycaster=new THREE.Raycaster();
+    raycaster.params.Points={threshold:2};mouse=new THREE.Vector2();
+    renderer.domElement.addEventListener('click',onPointerDown);
+    renderer.domElement.addEventListener('touchend',e=>{
+      if(e.changedTouches&&e.changedTouches.length===1){
+        const t=e.changedTouches[0];onPointerDown({clientX:t.clientX,clientY:t.clientY});
+      }
+    });
+    window.addEventListener('resize',onResize);
+    window.addEventListener('keydown',handleKeyDown);
+    document.getElementById('search').addEventListener('keydown',e=>{if(e.key==='Escape')closeSearch();});
+    if(window._lsPhase)window._lsPhase(2,'BUILDING SCENE',96);
+    // Yield so 96% repaints before geometry creation
+    requestAnimationFrame(function(){requestAnimationFrame(function(){
+      // Step 3: background star geometry
+      lastFrameTime=performance.now()*.001;
+      initBgStars();
+      if(window._lsPhase)window._lsPhase(2,'BUILDING SCENE',98);
+      // Yield so 98% repaints before object scene build
+      requestAnimationFrame(function(){requestAnimationFrame(function(){
+        // Step 4: build object scene + go live
+        setMode('stars');
+        animate();
+        const total=STARS.length+PLANETS.length+EXOPLANETS.length+BLACKHOLES.length+
+          SUPERNOVAE_OBJ.length+NEBULAE.length+CLUSTERS.length+PULSARS.length+GALAXY.length+DEEP_UNI.length;
+        document.getElementById('obj-count').textContent=total.toLocaleString()+' objects · 10k bg stars';
+        if(window._lsPhase)window._lsPhase(3,'ONLINE',100);
+        const ls=document.getElementById('ls');
+        if(ls){setTimeout(()=>{ls.style.opacity='0';setTimeout(()=>ls.remove(),700);},400);}
+      });});
+    });});
+  });});
 }
-// Yield a frame after parse so the loading screen repaints before init() blocks the thread
 if(window._lsPhase)window._lsPhase(2,'BUILDING SCENE',92);
 requestAnimationFrame(function(){requestAnimationFrame(function(){
   init();
