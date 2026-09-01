@@ -409,11 +409,11 @@ window._lsPhase(0,'LOADING ASSETS',5);
 <script>window._lsPhase&&window._lsPhase(2,'BUILDING SCENE',88);</script>
 <script>
 // ── Device capability detection ──
-const isMobile=('ontouchstart' in window)||navigator.maxTouchPoints>0||window.innerWidth<900;
+var isMobile=('ontouchstart' in window)||navigator.maxTouchPoints>0||window.innerWidth<900;
 // ══════════════════════════════════════════════
 // STARS — within ~50 ly + notable far objects
 // ══════════════════════════════════════════════
-const STARS=[
+var STARS=[
  {name:"Sun",ra:0,dec:0,dist:.00001,type:"G2V – Yellow Dwarf",col:"#FFEE44",sz:2.5,desc:"Our host star. 4.6 billion years old. Contains 99.86% of the solar system's total mass. Surface temperature 5,778 K. Diameter 1.4 million km. Spectral type G2V. Continuously monitored by SOHO (since 1995), SDO (since 2010), and Parker Solar Probe (since 2018).",stats:{"Distance":"0.000016 ly (1 AU)","Spectral Type":"G2V – Yellow Main Sequence","Temp":"5,778 K (surface)","Luminosity":"1 L☉ (definition)","Mass":"1.989 × 10³⁰ kg","Radius":"696,000 km","App. Magnitude":"-26.74","Observatory":"SOHO / SDO / Parker Solar Probe"}},
  {name:"Proxima Centauri",ra:14.4953,dec:-62.6794,dist:4.2465,type:"M5.5Ve – Red Dwarf",col:"#FF3300",sz:.4,desc:"Closest known star to Earth at 4.244 ly. Active flare star. Confirmed rocky exoplanet Proxima b (1.07 M⊕) in habitable zone; Proxima d (0.26 M⊕) also confirmed 2022. Part of the Alpha Centauri triple system. Gaia DR3 parallax: 768.5 mas. JWST will attempt atmosphere characterization of Proxima b.",stats:{"Distance":"4.244 ly (768.5 mas parallax)","Spectral Type":"M5.5Ve – Flare Star","Temp":"3,042 K","Luminosity":"0.00155 L☉","Mass":"0.1221 M☉","Radius":"0.1542 R☉","App. Magnitude":"11.13","Observatory":"Gaia DR3 / Hubble / JWST (upcoming)"}},
  {name:"α Centauri A",ra:14.6601,dec:-60.8339,dist:4.3671,type:"G2V – Yellow Dwarf",col:"#FFFF44",sz:1.2,desc:"Nearest solar twin. Part of binary with α Cen B (79.9-yr orbit). Closest star system at 4.37 ly. Gaia measured parallax 742.12 mas. Like our Sun in almost every way — 1.10 M☉, 1.52 L☉. Candidate exoplanet signals debated.",stats:{"Distance":"4.367 ly (742.12 mas)","Spectral Type":"G2V – Solar Analog","Temp":"5,790 K","Luminosity":"1.519 L☉","Mass":"1.100 M☉","Radius":"1.227 R☉","App. Magnitude":"-0.01 (combined)","Observatory":"Gaia DR3 / ESPRESSO spectrograph"}},
@@ -512,10 +512,13 @@ const STARS=[
  {name:"IK Pegasi B",ra:21.6923,dec:19.2994,dist:150,col:"#EEEEFF",sz:0.3,type:"DA – White Dwarf (Type Ia Candidate)",desc:"Nearest white dwarf massive enough to potentially explode as Type Ia supernova. In binary with A-star that will eventually dump mass onto the white dwarf. At 150 ly, will be brilliant naked-eye object when it explodes in ~2 billion years.",stats:{"Distance":"150 ly (21.75 mas)","Spectral Type":"DA – Hydrogen White Dwarf","Temp":"35,500 K","Luminosity":"0.0553 L☉","Mass":"1.15 M☉ (near Chandrasekhar limit)","Radius":"~7,000 km","App. Magnitude":"12.6","Observatory":"Gaia DR3 / IUE / ROSAT (Type Ia candidate)"}},
  {name:"HR 5171 A",ra:13.9478,dec:-62.0186,dist:12000,col:"#FF5500",sz:2.8,type:"G0Ia – Yellow Hypergiant",desc:"One of largest known stars — yellow hypergiant ~1,300 solar radii. Contact binary where companion is embedded in its outer envelope. Yellow hypergiants are among rarest stellar objects (<15 known in Milky Way). VLTI monitored orbit.",stats:{"Distance":"~12,000 ly","Spectral Type":"G0Ia – Yellow Hypergiant","Temp":"4,290 K","Luminosity":"~630,000 L☉","Mass":"~39 M☉","Radius":"~1,300 R☉","App. Magnitude":"6.1 (variable)","Observatory":"VLTI / Hubble / ESO (orbit monitoring)"}},
 ];
+</script>
+<script>window._lsPhase&&window._lsPhase(2,'BUILDING SCENE',91);</script>
+<script>
 // ══════════════════════════════════════════════
 // SOLAR SYSTEM OBJECTS
 // ══════════════════════════════════════════════
-const PLANETS=[
+var PLANETS=[
  {name:"Mercury",au:.387,col:"#888888",sz:.38,type:"Terrestrial Planet",desc:"Smallest planet. No atmosphere; surface temperatures from -180°C to 430°C. 176-Earth-day solar day. Heavily cratered — geological record of the early solar system. MESSENGER spacecraft orbited 2011-2015. BepiColombo en route, arrives 2025.",stats:{"Orbit":"0.387 AU","Diameter":"4,879 km","Mass":"0.055 M⊕","Day":"176 Earth days","Year":"87.97 days","Gravity":"0.378 g","Surface Temp":"-180°C to +430°C","Mission":"BepiColombo (ESA/JAXA) — arrives 2025"}},
  {name:"Venus",au:.723,col:"#E8C55C",sz:.95,type:"Terrestrial Planet",desc:"Hottest planet (465°C average). Thick CO₂ atmosphere (90 bar). Rotates retrograde every 243 days. Covered in volcanoes. Rain of sulfuric acid in clouds. EnVision (ESA) and DAVINCI/VERITAS (NASA) missions planned. Active volcanism confirmed by Magellan data reanalysis 2023.",stats:{"Orbit":"0.723 AU","Diameter":"12,104 km","Mass":"0.815 M⊕","Day":"243 Earth days (retrograde)","Year":"225 days","Gravity":"0.907 g","Surface Temp":"465°C (hottest planet)","Mission":"EnVision (ESA) / DAVINCI+ (NASA) planned"}},
  {name:"Earth",au:1.0,col:"#4488FF",sz:1.0,type:"Terrestrial Planet — Our Home",desc:"Only confirmed life-bearing world in the universe. 71% liquid water surface. Protected by magnetic field and ozone layer. Plate tectonics actively recycle the crust. The baseline for all planetary comparisons.",stats:{"Orbit":"1.000 AU","Diameter":"12,742 km","Mass":"5.972 × 10²⁴ kg (1 M⊕)","Day":"24 hours","Year":"365.25 days","Gravity":"9.807 m/s² (1 g)","Surface Temp":"-88°C to +58°C (avg 15°C)","Moons":"1 (Luna, 3,474 km diameter)"}},
@@ -567,7 +570,7 @@ const PLANETS=[
  {name:"2I/Borisov",au:7.1,col:"#AADDFF",sz:.2,type:"Second Interstellar Comet",desc:"First confirmed interstellar comet and second interstellar object ever detected (2019). Unlike 'Oumuamua, Borisov behaved as a normal comet with outgassing. CO-rich composition unlike most solar system comets, suggesting formation around a different star.",stats:{"Discovered":"August 30, 2019 (Gennady Borisov)","Speed":"32.2 km/s at infinity","Nucleus":"~0.5-1 km estimated","Period":"Non-periodic (hyperbolic)","Composition":"CO-rich, CO/H₂O = 1 (unusual)","Type":"Confirmed interstellar comet (first with outgassing)","Status":"~7 AU and receding (2026)","Origin":"Possibly Kruger 60 system"}},
 ];
 const HELIO_AU=120;
-const EXOPLANETS=[
+var EXOPLANETS=[
  {name:"51 Pegasi",ra:22.9958,dec:20.7686,dist:50.9,col:0xffcc88,rad:.7,stats:{
   "Distance":"50.9 ly (15.6 pc, Gaia DR3)",
   "Orbital Period":"4.23 days",
@@ -819,7 +822,7 @@ const EXOPLANETS=[
   "Hubble+JWST":"H₂O, CO, CH₄, CO₂; blue color from silicate clouds"
  },desc:"HD 189733b: deep blue from silicate glass clouds scattering blue light. Hubble and JWST detected H₂O, CO₂, CH₄. 8,700 km/h winds measured. Most studied hot Jupiter."}
 ];
-const BLACKHOLES=[
+var BLACKHOLES=[
  {name:"Sgr A*",ra:17.7611,dec:-29.0078,dist:26000,col:0x220011,rad:2.5,stats:{
   "Distance":"26,000 ly (8 kpc, Gravity Collab.)",
   "Mass":"4.154 × 10⁶ M☉",
@@ -971,7 +974,7 @@ const BLACKHOLES=[
   "Observatory":"LIGO + Virgo O3 run"
  },desc:"GW190521: merger producing 142 M☉ intermediate-mass black hole — first IMBH detected. Progenitor BHs (85+66 M☉) both in pair-instability supernova gap. Event lasted 0.1 seconds."}
 ];
-const SUPERNOVAE_OBJ=[
+var SUPERNOVAE_OBJ=[
  {name:"Crab Nebula",ra:5.5756,dec:22.0139,dist:6500,col:0xff6633,rad:1.8,stats:{
   "Distance":"6,500 ly (2 kpc)",
   "Explosion Date":"1054 CE (recorded by Chinese/Arab astronomers)",
@@ -1093,7 +1096,7 @@ const SUPERNOVAE_OBJ=[
   "Observatory":"XMM-Newton, Chandra, INTEGRAL"
  },desc:"Vela Supernova Remnant: nearest SNR to Earth. Eight degrees across on the sky. Vela Pulsar is one of brightest gamma-ray pulsars. XMM-Newton revealed fast-moving ejecta shrapnel knots."}
 ];
-const NEBULAE=[
+var NEBULAE=[
  {name:"Orion Nebula",ra:5.5883,dec:-5.3911,dist:1344,col:0x88aaff,rad:2.0,stats:{
   "Distance":"1,344 ly (412 pc, Gaia VLBI)",
   "Diameter":"24 ly across",
@@ -1315,7 +1318,10 @@ const NEBULAE=[
   "Observatory":"Chandra + HST + JWST 2023"
  },desc:"Eta Carinae: one of the most massive and luminous stars known. Survived 'Great Eruption' 1843 — ejected 10-40 M☉ forming Homunculus Nebula. JWST 2023 revealed new structures in outer ejecta. Supernova imminent on astronomical timescales."}
 ];
-const CLUSTERS=[
+</script>
+<script>window._lsPhase&&window._lsPhase(2,'BUILDING SCENE',94);</script>
+<script>
+var CLUSTERS=[
  {name:"Pleiades",ra:3.7908,dec:24.105,dist:444,col:0xaaccff,rad:1.8,stats:{
   "Distance":"444 ly (136 pc, Gaia DR3 parallax)",
   "Diameter":"~43 ly across (core)",
@@ -1517,7 +1523,7 @@ const CLUSTERS=[
   "Observatory":"Hubble ACS + Chandra + XMM-Newton"
  },desc:"Scorpius OB1: largest OB association within 2 kpc. Contains Pismis 24 sub-cluster — HST resolved individual massive O-stars previously thought to be single super-massive star. Multiple sub-groups at different ages."}
 ];
-const PULSARS=[
+var PULSARS=[
  {name:"Crab Pulsar",ra:5.5756,dec:22.0139,dist:6500,col:0x00ffff,rad:1.0,stats:{
   "Distance":"6,500 ly (2.0 kpc)",
   "Period":"33.5 milliseconds (PSR B0531+21)",
@@ -1659,7 +1665,7 @@ const PULSARS=[
   "Observatory":"Arecibo + VLA + CHIME + FAST"
  },desc:"FRB 20121102A (Repeating FRB): first localized and repeating FRB. Located in dwarf galaxy at 3 Gly. 157-day activity cycle detected by CHIME. Over 1,600 bursts catalogued. FAST detected 47 bursts in 1 hour (2021)."}
 ];
-const GALAXY=[
+var GALAXY=[
  {name:"Milky Way Center",ra:17.7611,dec:-29.0078,dist:26000,col:0xffeecc,rad:3.0,stats:{
   "Distance":"26,000 ly (8.178 kpc, Gravity Collab. 2022)",
   "Diameter":"~100,000 ly disk; ~200,000 ly halo",
@@ -1851,7 +1857,7 @@ const GALAXY=[
   "Observatory":"Hubble + Chandra + Abell catalog"
  },desc:"IC 1101: largest known galaxy at 6 million ly across — 60 times larger than Milky Way. Brightest cluster galaxy of Abell 2029. Contains up to 100 trillion stars. Extended stellar halo from centuries of cannibalizing nearby galaxies."}
 ];
-const DEEP_UNI=[
+var DEEP_UNI=[
  {name:"Hubble Deep Field",ra:12.6069,dec:62.2122,dist:12000000000,col:0x112244,rad:2.5,stats:{
   "Distance":"~12 Gly (z~3 peak), deepest ~13 Gly",
   "Field Size":"5.3 arcmin² (144 arcsec × 144 arcsec)",
@@ -2058,6 +2064,9 @@ const PLANET_INC = {
 // ─── THREE.JS ENGINE ─────────────────────────────────────────────────────────
 
 // ─── GLOBALS ─────────────────────────────────────────────────────────────────
+</script>
+<script>window._lsPhase&&window._lsPhase(2,'BUILDING SCENE',97);</script>
+<script>
 let scene, camera, renderer, controls, composer, bloomPass;
 let raycaster, mouse;
 let allObjects = [], labels = [], glowMeshes = [];
