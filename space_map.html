@@ -283,7 +283,27 @@ window._lsPhase=function(step,msg,pct){
       f=document.getElementById('ls-fill'),g=document.getElementById('ls-glow');
   if(m)m.textContent=msg;
   if(p)p.textContent=pct+'%';
-  if(f){f.style.width=pct+'%';if(g)g.style.opacity=pct>0?'1':'0';}
+  if(f){
+    if(pct>=100){
+      // Snap to 100% instantly then hide
+      f.style.transition='width 0.3s ease';
+      f.style.width='100%';
+    } else if(pct>=92){
+      // At 92%+ JS will block for WebGL init. Immediately set the real pct,
+      // then start a slow CSS crawl to 99% — compositor thread keeps it moving
+      // even while JS is completely frozen. Real completion snaps to 100%.
+      f.style.transition='none';
+      f.style.width=pct+'%';
+      // Force layout so the width is painted before transition starts
+      f.offsetWidth;
+      f.style.transition='width 5s linear';
+      setTimeout(function(){f.style.width='99%';},20);
+    } else {
+      f.style.transition='width 0.4s ease';
+      f.style.width=pct+'%';
+    }
+    if(g)g.style.opacity=pct>0?'1':'0';
+  }
 };
 window._lsPhase(0,'LOADING ASSETS',5);
 </script>
