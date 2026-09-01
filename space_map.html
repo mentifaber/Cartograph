@@ -2180,14 +2180,21 @@ function addGlow(color,size,pos){
 }
 function makeLabel(text,color){
   const c=document.createElement('canvas');
-  c.width=256;c.height=48;
-  const ctx=c.getContext('2d');
-  ctx.font='bold 13px Arial';
+  // Measure text first so canvas is tight — avoids "bar" artifact at distance
+  c.width=1;c.height=1;
+  let ctx=c.getContext('2d');
+  ctx.font='bold 14px Arial';
+  const tw=Math.ceil(ctx.measureText(text).width)+12;
+  c.width=tw;c.height=22;
+  ctx=c.getContext('2d');
+  ctx.font='bold 14px Arial';
   ctx.fillStyle=color||'#ffffff';
-  ctx.shadowColor='#000020';ctx.shadowBlur=5;
-  ctx.fillText(text,4,30);
-  const mat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthWrite:false,transparent:true});
-  const s=new THREE.Sprite(mat);s.scale.set(7,1.8,1);return s;
+  ctx.shadowColor='rgba(0,0,12,0.9)';ctx.shadowBlur=4;
+  ctx.fillText(text,4,16);
+  const mat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthWrite:false,transparent:true,opacity:0.88});
+  const s=new THREE.Sprite(mat);
+  const wScale=tw/22*1.4; // keep proportional to canvas aspect
+  s.scale.set(wScale,1.4,1);return s;
 }
 function sphere(radius,color,emissive){
   const geo=new THREE.SphereGeometry(radius,18,18);
@@ -2431,7 +2438,7 @@ function buildStars(){
     const catTag=isBH?'bh':isWD?'wd':isGiant?'giant':'star';
 
     // Visual point — shader-rendered, no lightbulb effect
-    const vizSz=isBH?5.5:(isGiant?7.5:(s.sz&&s.sz>1.5?5.5:3.8));
+    const vizSz=isBH?4.5:(isGiant?5.5:(s.sz&&s.sz>1.5?4.5:3.2));
     ptPos.push(pos.x,pos.y,pos.z);
     ptSz.push(vizSz);
     ptCol.push(((col>>16)&0xff)/255,((col>>8)&0xff)/255,(col&0xff)/255);
@@ -2450,6 +2457,11 @@ function buildStars(){
     lbl.position.set(pos.x,pos.y+clickR+0.9,pos.z);
     lbl.userData={catTag};labels.push(lbl);scene.add(lbl);ct.userData._lbl=lbl;
   });
+
+  // Labels off by default in stellar mode — hundreds of labels = bar clutter
+  showLabels=false;
+  const lb=document.getElementById('btn-labels');
+  if(lb){lb.textContent='Labels: OFF';lb.classList.remove('on');}
 
   // All catalog stars as one shader Points call — clean, crisp, no halos
   const stGeo=new THREE.BufferGeometry();
@@ -3018,8 +3030,10 @@ function initBloom(){
     var bH=isMobile?Math.floor(window.innerHeight/2):window.innerHeight;
     composer=new THREE.EffectComposer(renderer);
     composer.addPass(new THREE.RenderPass(scene,camera));
-    bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(bW,bH),
-      isMobile?0.18:0.26,isMobile?0.28:0.28,0.22);
+    var bloomByMode={solar:0.06,stars:0.08,exoplanets:0.10,blackholes:0.20,nebulae:0.18,galaxy:0.22,universe:0.20};
+    var initStr=bloomByMode[currentMode]!==undefined?bloomByMode[currentMode]:0.15;
+    if(isMobile)initStr=Math.min(initStr,0.12);
+    bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(bW,bH),initStr,0.28,0.22);
     composer.addPass(bloomPass);
   }catch(err){
     console.warn('Bloom unavailable:',err.message);
