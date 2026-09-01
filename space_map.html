@@ -2539,26 +2539,98 @@ function buildNebulae(){
 
 // ─── BUILD: GALAXY ───────────────────────────────────────────────────────────
 function buildGalaxy(){
-  clearScene();controls.minDistance=1;controls.maxDistance=5000;
-  camera.position.set(0,300,600);controls.target.set(0,0,0);
-  const diskGeo=new THREE.CylinderGeometry(200,200,4,128,1,true);
-  scene.add(new THREE.Mesh(diskGeo,new THREE.MeshBasicMaterial({color:0x334466,transparent:true,opacity:0.14,side:THREE.DoubleSide})));
-  addGlow('rgba(255,180,80,1)',75,new THREE.Vector3(0,0,0));
-  const armPos=[];
-  for(let arm=0;arm<4;arm++)for(let i=0;i<800;i++){
-    const t=i/800,r=5+t*195,theta=arm*Math.PI/2+t*Math.PI*2.5+(Math.random()-0.5)*0.5;
-    armPos.push(r*Math.cos(theta),(Math.random()-0.5)*4,r*Math.sin(theta));
+  clearScene();controls.minDistance=1;controls.maxDistance=8000;
+  camera.position.set(0,380,760);controls.target.set(0,0,0);
+
+  // Dust lane dark disk
+  const diskGeo=new THREE.CylinderGeometry(225,225,2,128,1,true);
+  scene.add(new THREE.Mesh(diskGeo,new THREE.MeshBasicMaterial({color:0x06060e,transparent:true,opacity:0.28,side:THREE.DoubleSide})));
+
+  // ── Central bulge ──
+  const bulgeP=[],bulgeC=[];
+  for(let i=0;i<7000;i++){
+    const r=Math.pow(Math.random(),1.8)*30;
+    const th=Math.random()*Math.PI*2,ph=(Math.random()-.5)*Math.PI;
+    const x=r*Math.cos(th)*Math.cos(ph),y=r*Math.sin(ph)*0.38,z=r*Math.sin(th)*Math.cos(ph);
+    bulgeP.push(x,y,z);
+    const t=r/30;
+    bulgeC.push(1.0,0.82-t*.18,0.28+t*.1);
   }
-  const armGeo=new THREE.BufferGeometry();
-  armGeo.setAttribute('position',new THREE.Float32BufferAttribute(armPos,3));
-  scene.add(new THREE.Points(armGeo,new THREE.PointsMaterial({color:0xaaccff,size:1.3,sizeAttenuation:true})));
+  const bGeo=new THREE.BufferGeometry();
+  bGeo.setAttribute('position',new THREE.Float32BufferAttribute(bulgeP,3));
+  bGeo.setAttribute('color',new THREE.Float32BufferAttribute(bulgeC,3));
+  scene.add(new THREE.Points(bGeo,new THREE.PointsMaterial({size:.95,sizeAttenuation:true,vertexColors:true,transparent:true,opacity:.92,blending:THREE.AdditiveBlending,depthWrite:false})));
+
+  // ── Galactic bar (~27° tilt, 60 unit long) ──
+  const barAngle=Math.PI/6.5;
+  const barP=[],barC=[];
+  for(let i=0;i<3000;i++){
+    const l=(Math.random()-.5)*64;
+    const w=(Math.random()-.5)*10*Math.exp(-Math.abs(l)/32);
+    const h=(Math.random()-.5)*2.8*Math.exp(-Math.abs(l)/28);
+    barP.push(l*Math.cos(barAngle)+w*Math.sin(barAngle),h,l*Math.sin(barAngle)-w*Math.cos(barAngle));
+    barC.push(1.0,.82,.44);
+  }
+  const barGeo=new THREE.BufferGeometry();
+  barGeo.setAttribute('position',new THREE.Float32BufferAttribute(barP,3));
+  barGeo.setAttribute('color',new THREE.Float32BufferAttribute(barC,3));
+  scene.add(new THREE.Points(barGeo,new THREE.PointsMaterial({size:.85,sizeAttenuation:true,vertexColors:true,transparent:true,opacity:.88,blending:THREE.AdditiveBlending,depthWrite:false})));
+
+  // ── Four spiral arms (Perseus, Norma, Scutum-Centaurus, Sagittarius) ──
+  const armDefs=[
+    {a:barAngle,r0:24,col:[.58,.82,1.0]},
+    {a:barAngle+Math.PI,r0:24,col:[.50,.78,1.0]},
+    {a:barAngle+Math.PI*.5,r0:20,col:[.68,.88,1.0]},
+    {a:barAngle+Math.PI*1.5,r0:20,col:[.54,.80,1.0]}
+  ];
+  const spirP=[],spirC=[];
+  const NPA=3000;
+  armDefs.forEach(arm=>{
+    for(let i=0;i<NPA;i++){
+      const t=i/NPA,r=arm.r0+t*190;
+      const theta=arm.a+t*Math.PI*2.8;
+      const spread=5+t*20,sc=(Math.random()-.5)*spread;
+      const px=r*Math.cos(theta)+sc*Math.cos(theta+Math.PI*.5);
+      const py=(Math.random()-.5)*(2+t*5.5);
+      const pz=r*Math.sin(theta)+sc*Math.sin(theta+Math.PI*.5);
+      spirP.push(px,py,pz);
+      const br=.35+(1-t)*.65;
+      spirC.push(arm.col[0]*br,arm.col[1]*br,arm.col[2]*br);
+    }
+  });
+  // Interarm faint disk fill
+  for(let i=0;i<5000;i++){
+    const r=15+Math.random()*195,th=Math.random()*Math.PI*2;
+    spirP.push(r*Math.cos(th),(Math.random()-.5)*(1+r*.026),r*Math.sin(th));
+    const b=.08+(1-r/210)*.15;
+    spirC.push(b*.6,b*.75,b);
+  }
+  const spirGeo=new THREE.BufferGeometry();
+  spirGeo.setAttribute('position',new THREE.Float32BufferAttribute(spirP,3));
+  spirGeo.setAttribute('color',new THREE.Float32BufferAttribute(spirC,3));
+  scene.add(new THREE.Points(spirGeo,new THREE.PointsMaterial({size:.82,sizeAttenuation:true,vertexColors:true,transparent:true,opacity:.78,blending:THREE.AdditiveBlending,depthWrite:false})));
+
+  // ── Outer halo ──
+  const haloP=[];
+  for(let i=0;i<900;i++){
+    const r=185+Math.pow(Math.random(),.6)*90,th=Math.random()*Math.PI*2,ph=(Math.random()-.5)*Math.PI*.45;
+    haloP.push(r*Math.cos(th)*Math.cos(ph),r*Math.sin(ph)*.55,r*Math.sin(th)*Math.cos(ph));
+  }
+  const hGeo=new THREE.BufferGeometry();hGeo.setAttribute('position',new THREE.Float32BufferAttribute(haloP,3));
+  scene.add(new THREE.Points(hGeo,new THREE.PointsMaterial({color:0xffeedd,size:.62,sizeAttenuation:true,transparent:true,opacity:.22,blending:THREE.AdditiveBlending,depthWrite:false})));
+
+  // ── Glows ──
+  addGlow('rgba(255,150,50,1)',45,new THREE.Vector3(0,0,0));
+  addGlow('rgba(180,160,255,1)',130,new THREE.Vector3(0,0,0));
+
+  // ── Named galaxy data objects ──
   GALAXY.forEach(g=>{
     const gCol=g.col?parseInt(g.col.replace('#',''),16):0xffaa66;
-    const gSz=g.sz?Math.max(1.5,g.sz*0.009):6;
+    const gSz=g.sz?Math.max(1.5,g.sz*.009):6;
     const m=sphere(gSz,gCol);
     const gp=new THREE.Vector3(g.x||0,g.y||0,g.z||0);m.position.copy(gp);
     m.userData={name:g.name,type:g.type||'Galaxy',catTag:'galaxy',desc:g.desc||'',stats:g.stats||null};
-    m.material.transparent=true;m.material.opacity=0.85;
+    m.material.transparent=true;m.material.opacity=.85;
     scene.add(m);allObjects.push(m);
     addGlow(`rgba(${(gCol>>16)&0xff},${(gCol>>8)&0xff},${gCol&0xff},1)`,gSz*4.5,gp);
     const lbl=makeLabel(g.name,'#ffddaa');lbl.position.set(gp.x,gp.y+gSz+4,gp.z);
@@ -2571,44 +2643,83 @@ function buildGalaxy(){
 
 // ─── BUILD: DEEP UNIVERSE ────────────────────────────────────────────────────
 function buildUniverse(){
-  clearScene();controls.minDistance=10;controls.maxDistance=3000000;
-  camera.position.set(0,50000,200000);controls.target.set(0,0,0);
-  const mwM=sphere(500,0x88aaff);
+  clearScene();controls.minDistance=10;controls.maxDistance=4000000;
+  camera.position.set(0,90000,320000);controls.target.set(0,0,0);
+
+  // ── Cosmic web background: filaments + walls + voids ──
+  const bgP=[],bgC=[];
+  const NF=isMobile?4000:9000;
+  for(let i=0;i<NF;i++){
+    const roll=Math.random();
+    let x,y,z;
+    if(roll<.3){
+      // Filament A
+      const t=(Math.random()-.5)*700000;
+      x=t+(Math.random()-.5)*55000;y=(Math.random()-.5)*18000;z=t*.28+(Math.random()-.5)*55000;
+    } else if(roll<.55){
+      // Filament B
+      const t=(Math.random()-.5)*600000;
+      x=-t*.38+(Math.random()-.5)*48000;y=(Math.random()-.5)*22000;z=t+(Math.random()-.5)*48000;
+    } else if(roll<.75){
+      // Great wall sheet
+      x=(Math.random()-.5)*800000;y=(Math.random()-.5)*14000;z=(Math.random()-.5)*800000;
+    } else {
+      // Void scatter
+      const r=220000+Math.random()*220000,th=Math.random()*Math.PI*2,ph=(Math.random()-.5)*Math.PI;
+      x=r*Math.cos(th)*Math.cos(ph);y=r*Math.sin(ph)*.28;z=r*Math.sin(th)*Math.cos(ph);
+    }
+    bgP.push(x,y,z);
+    const d=Math.sqrt(x*x+y*y+z*z),t2=Math.min(d/700000,1);
+    bgC.push(.22+t2*.68,.35+t2*.28,1-.5*t2);
+  }
+  const bgGeo=new THREE.BufferGeometry();
+  bgGeo.setAttribute('position',new THREE.Float32BufferAttribute(bgP,3));
+  bgGeo.setAttribute('color',new THREE.Float32BufferAttribute(bgC,3));
+  scene.add(new THREE.Points(bgGeo,new THREE.PointsMaterial({size:450,sizeAttenuation:true,vertexColors:true,transparent:true,opacity:.3,blending:THREE.AdditiveBlending,depthWrite:false})));
+
+  // ── Milky Way (us) ──
+  const mwM=sphere(600,0x88aaff);
   mwM.userData={name:'Milky Way',type:'Barred Spiral Galaxy',catTag:'galaxy',
     desc:'Our home galaxy. ~200-400 billion stars, barred spiral, diameter ~100,000 ly.',
     stats:{'Diameter':'~100,000 ly','Stars':'200-400 billion','Age':'~13.6 Gyr','Position':'Orion Arm'}};
   scene.add(mwM);allObjects.push(mwM);
-  addGlow('rgba(100,150,255,1)',2800,new THREE.Vector3(0,0,0));
-  const mwL=makeLabel('Milky Way','#aabbff');mwL.position.set(0,900,0);
+  addGlow('rgba(100,155,255,1)',3500,new THREE.Vector3(0,0,0));
+  addGlow('rgba(60,100,200,1)',8000,new THREE.Vector3(0,0,0));
+  const mwL=makeLabel('Milky Way','#aabbff');mwL.position.set(0,1400,0);
   mwL.userData={catTag:'galaxy'};labels.push(mwL);scene.add(mwL);mwM.userData._lbl=mwL;
+
+  // ── Deep universe catalog objects ──
   DEEP_UNI.forEach(d=>{
     const dCol=d.col?parseInt(d.col.replace('#',''),16):0xffaa44;
-    const dSz=d.sz?Math.max(100,d.sz*0.15):200;
+    const dSz=d.sz?Math.max(100,d.sz*.15):220;
     const m=sphere(dSz,dCol);
     let px,py,pz;
     if(d.x!==undefined){px=d.x||0;py=d.y||0;pz=d.z||0;}
     else{const pu=rd2xyz(d.ra,d.dec,d.dist/65);px=pu.x;py=pu.y;pz=pu.z;}
     m.position.set(px,py,pz);
     m.userData={name:d.name,type:d.type||'Galaxy',catTag:'deep',desc:d.desc||'',stats:d.stats||null};
-    m.material.transparent=true;m.material.opacity=0.85;
+    m.material.transparent=true;m.material.opacity=.92;
     scene.add(m);allObjects.push(m);
     const dp=new THREE.Vector3(px,py,pz);
-    addGlow(`rgba(${(dCol>>16)&0xff},${(dCol>>8)&0xff},${dCol&0xff},1)`,dSz*7.5,dp);
-    const lbl=makeLabel(d.name,'#ffddbb');lbl.position.set(px,py+dSz+500,pz);
+    addGlow(`rgba(${(dCol>>16)&0xff},${(dCol>>8)&0xff},${dCol&0xff},1)`,dSz*11,dp);
+    const lbl=makeLabel(d.name,'#ffddbb');lbl.position.set(px,py+dSz+650,pz);
     lbl.userData={catTag:'deep'};labels.push(lbl);scene.add(lbl);m.userData._lbl=lbl;
   });
+
+  // ── Cosmological extremes ──
   const CS=1/65;
   [...BLACKHOLES.filter(b=>b.dist>50000000),...SUPERNOVAE_OBJ.filter(s=>s.dist>50000000)].forEach(obj=>{
     const sp=rd2xyz(obj.ra,obj.dec,obj.dist*CS);
     const col=parseInt((obj.col||'#FF5500').replace('#',''),16);
-    const m=sphere(9000,col);m.position.copy(sp);
+    const m=sphere(10000,col);m.position.copy(sp);
     m.userData={name:obj.name,type:obj.type||'Extreme Event',catTag:'cosmological',desc:obj.desc||'',stats:obj.stats||null};
-    m.material.transparent=true;m.material.opacity=0.9;
+    m.material.transparent=true;m.material.opacity=.92;
     scene.add(m);allObjects.push(m);
-    addGlow(`rgba(${(col>>16)&0xff},${(col>>8)&0xff},${col&0xff},1)`,65000,sp);
-    const lbl=makeLabel(obj.name,'#ffbb66');lbl.position.set(sp.x,sp.y+14000,sp.z);
+    addGlow(`rgba(${(col>>16)&0xff},${(col>>8)&0xff},${col&0xff},1)`,85000,sp);
+    const lbl=makeLabel(obj.name,'#ffbb66');lbl.position.set(sp.x,sp.y+17000,sp.z);
     lbl.userData={catTag:'cosmological'};labels.push(lbl);scene.add(lbl);m.userData._lbl=lbl;
   });
+
   updateScale('Deep universe — millions to 13+ billion light-years');updateSidebar();
 }
 
@@ -2875,7 +2986,7 @@ function initBloom(){
     composer=new THREE.EffectComposer(renderer);
     composer.addPass(new THREE.RenderPass(scene,camera));
     bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(bW,bH),
-      isMobile?0.35:0.5,isMobile?0.5:0.4,0.08);
+      isMobile?0.18:0.26,isMobile?0.28:0.28,0.22);
     composer.addPass(bloomPass);
   }catch(err){
     console.warn('Bloom unavailable:',err.message);
