@@ -271,6 +271,7 @@ body::after{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;
   <div id="ls-corner">MENTIFABER · CARTOGRAPH</div>
 </div>
 <script>
+var _lsCrawlActive=false;
 window._lsPhase=function(step,msg,pct){
   var dots=document.querySelectorAll('.ls-pd'),lbls=document.querySelectorAll('.ls-pl');
   dots.forEach(function(d,i){d.className='ls-pd'+(i<step?' done':i===step?' cur':'');});
@@ -278,25 +279,32 @@ window._lsPhase=function(step,msg,pct){
   var m=document.getElementById('ls-msg'),p=document.getElementById('ls-pct'),
       f=document.getElementById('ls-fill');
   if(m)m.textContent=msg;
-  if(p)p.textContent=pct+'%';
   if(f){
-    var s=pct/100;
     if(pct>=100){
-      // transform:scaleX runs on GPU compositor — never freezes
+      // Snap to 100% — compositor-thread transform, never freezes
+      _lsCrawlActive=false;
       f.style.transition='transform 0.3s ease';
       f.style.transform='scaleX(1)';
-    } else if(pct>=92){
-      // WebGL init will block main thread. Snap to current pct then start a
-      // 5s linear crawl to 99% using transform (compositor thread = keeps
-      // animating even while JS is completely frozen).
+      if(p)p.textContent='100%';
+    } else if(!_lsCrawlActive && pct>=88){
+      // Start crawl ONCE from current position to 99% over 6s.
+      // Uses transform (GPU compositor thread) so it keeps moving even
+      // when JS is completely blocked by WebGL init.
+      // Subsequent _lsPhase calls at >=88 only update text, not the bar.
+      _lsCrawlActive=true;
       f.style.transition='none';
-      f.style.transform='scaleX('+s+')';
-      f.offsetWidth; // flush so snap is painted before transition starts
-      f.style.transition='transform 5s linear';
+      f.style.transform='scaleX('+pct/100+')';
+      f.offsetWidth; // force reflow so snap is painted before transition
+      f.style.transition='transform 6s linear';
       setTimeout(function(){f.style.transform='scaleX(0.99)';},20);
+      if(p)p.textContent=pct+'%';
+    } else if(_lsCrawlActive){
+      // Crawl already running — only update text, leave bar alone
+      if(p)p.textContent=pct<100?'...':pct+'%';
     } else {
       f.style.transition='transform 0.4s ease';
-      f.style.transform='scaleX('+s+')';
+      f.style.transform='scaleX('+pct/100+')';
+      if(p)p.textContent=pct+'%';
     }
   }
 };
@@ -2876,12 +2884,9 @@ function initBloom(){
   }
 }
 function init(){
-  // setTimeout fires after paint (unlike rAF which fires before).
-  // Each 50ms gap guarantees the loading bar update is visible before the
-  // next blocking call runs.
-  if(window._lsPhase)window._lsPhase(2,'INIT RENDERER',93);
+  // No _lsPhase calls here — crawl is already running on compositor thread.
+  // Any additional phase call would interrupt the crawl or jump the bar backward.
   setTimeout(function(){
-    // Step 1: WebGL context + scene + camera + controls
     scene=new THREE.Scene();scene.background=new THREE.Color(0x000008);
     camera=new THREE.PerspectiveCamera(55,window.innerWidth/window.innerHeight,0.001,50000000);
     camera.position.set(0,40,100);
@@ -2905,25 +2910,22 @@ function init(){
     window.addEventListener('resize',onResize);
     window.addEventListener('keydown',handleKeyDown);
     document.getElementById('search').addEventListener('keydown',function(e){if(e.key==='Escape')closeSearch();});
-    if(window._lsPhase)window._lsPhase(2,'BUILDING SCENE',97);
     setTimeout(function(){
-      // Step 2: background stars + object scene — go live WITHOUT bloom
       lastFrameTime=performance.now()*.001;
       initBgStars();
       setMode('stars');
-      animate(); // composer=null here → uses renderer.render(), no freeze
+      animate();
       var total=STARS.length+PLANETS.length+EXOPLANETS.length+BLACKHOLES.length+
         SUPERNOVAE_OBJ.length+NEBULAE.length+CLUSTERS.length+PULSARS.length+GALAXY.length+DEEP_UNI.length;
       document.getElementById('obj-count').textContent=total.toLocaleString()+' objects · 10k bg stars';
       if(window._lsPhase)window._lsPhase(3,'ONLINE',100);
       var ls=document.getElementById('ls');
       if(ls){setTimeout(function(){ls.style.opacity='0';setTimeout(function(){ls.remove();},700);},400);}
-      // Step 3: compile bloom shaders 2s after loading screen hides — invisible to user
       setTimeout(initBloom,2200);
     },50);
   },50);
 }
-if(window._lsPhase)window._lsPhase(2,'BUILDING SCENE',92);
+// Crawl already started at 88% — do NOT call _lsPhase here (would jump bar backward from 97%)
 setTimeout(function(){init();},50);
 
 </script>
