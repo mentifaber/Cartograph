@@ -2843,12 +2843,30 @@ function animate(){
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
+function initBloom(){
+  // Compile bloom shaders after loading screen is gone — animate() is already
+  // running without bloom (composer=null → falls back to renderer.render())
+  try{
+    var bW=isMobile?Math.floor(window.innerWidth/2):window.innerWidth;
+    var bH=isMobile?Math.floor(window.innerHeight/2):window.innerHeight;
+    composer=new THREE.EffectComposer(renderer);
+    composer.addPass(new THREE.RenderPass(scene,camera));
+    bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(bW,bH),
+      isMobile?0.35:0.5,isMobile?0.5:0.4,0.08);
+    composer.addPass(bloomPass);
+  }catch(err){
+    console.warn('Bloom unavailable:',err.message);
+    composer=null;bloomPass=null;
+    var bb=document.getElementById('bloom-btn');if(bb)bb.style.opacity='0.3';
+  }
+}
 function init(){
-  // Immediately bump to 93% and yield BEFORE any Three.js object creation.
-  // new THREE.WebGLRenderer() is the first slow call — it must not run at 92%.
+  // setTimeout fires after paint (unlike rAF which fires before).
+  // Each 50ms gap guarantees the loading bar update is visible before the
+  // next blocking call runs.
   if(window._lsPhase)window._lsPhase(2,'INIT RENDERER',93);
-  requestAnimationFrame(function(){requestAnimationFrame(function(){
-    // Step 1: WebGL renderer + scene + camera (WebGL context init can be slow)
+  setTimeout(function(){
+    // Step 1: WebGL context + scene + camera + controls
     scene=new THREE.Scene();scene.background=new THREE.Color(0x000008);
     camera=new THREE.PerspectiveCamera(55,window.innerWidth/window.innerHeight,0.001,50000000);
     camera.position.set(0,40,100);
@@ -2861,54 +2879,37 @@ function init(){
     controls.enableDamping=true;controls.dampingFactor=0.08;
     controls.autoRotateSpeed=0.4;controls.enableZoom=true;controls.enablePan=true;
     controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};
-    if(window._lsPhase)window._lsPhase(2,'COMPILING SHADERS',96);
-    requestAnimationFrame(function(){requestAnimationFrame(function(){
-      // Step 2: bloom post-processing (shader compilation — heaviest GPU hit)
-      try{
-        const bW=isMobile?Math.floor(window.innerWidth/2):window.innerWidth;
-        const bH=isMobile?Math.floor(window.innerHeight/2):window.innerHeight;
-        composer=new THREE.EffectComposer(renderer);
-        composer.addPass(new THREE.RenderPass(scene,camera));
-        bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(bW,bH),
-          isMobile?0.35:0.5, isMobile?0.5:0.4, 0.08);
-        composer.addPass(bloomPass);
-      }catch(err){
-        console.warn('Bloom post-processing unavailable:',err.message);
-        composer=null;bloomPass=null;
-        document.getElementById('bloom-btn').style.opacity='0.3';
+    raycaster=new THREE.Raycaster();
+    raycaster.params.Points={threshold:2};mouse=new THREE.Vector2();
+    renderer.domElement.addEventListener('click',onPointerDown);
+    renderer.domElement.addEventListener('touchend',function(e){
+      if(e.changedTouches&&e.changedTouches.length===1){
+        var t=e.changedTouches[0];onPointerDown({clientX:t.clientX,clientY:t.clientY});
       }
-      raycaster=new THREE.Raycaster();
-      raycaster.params.Points={threshold:2};mouse=new THREE.Vector2();
-      renderer.domElement.addEventListener('click',onPointerDown);
-      renderer.domElement.addEventListener('touchend',e=>{
-        if(e.changedTouches&&e.changedTouches.length===1){
-          const t=e.changedTouches[0];onPointerDown({clientX:t.clientX,clientY:t.clientY});
-        }
-      });
-      window.addEventListener('resize',onResize);
-      window.addEventListener('keydown',handleKeyDown);
-      document.getElementById('search').addEventListener('keydown',e=>{if(e.key==='Escape')closeSearch();});
-      if(window._lsPhase)window._lsPhase(2,'BUILDING SCENE',98);
-      requestAnimationFrame(function(){requestAnimationFrame(function(){
-        // Step 3: background star geometry + object scene
-        lastFrameTime=performance.now()*.001;
-        initBgStars();
-        setMode('stars');
-        animate();
-        const total=STARS.length+PLANETS.length+EXOPLANETS.length+BLACKHOLES.length+
-          SUPERNOVAE_OBJ.length+NEBULAE.length+CLUSTERS.length+PULSARS.length+GALAXY.length+DEEP_UNI.length;
-        document.getElementById('obj-count').textContent=total.toLocaleString()+' objects · 10k bg stars';
-        if(window._lsPhase)window._lsPhase(3,'ONLINE',100);
-        const ls=document.getElementById('ls');
-        if(ls){setTimeout(()=>{ls.style.opacity='0';setTimeout(()=>ls.remove(),700);},400);}
-      });});
-    });});
-  });});
+    });
+    window.addEventListener('resize',onResize);
+    window.addEventListener('keydown',handleKeyDown);
+    document.getElementById('search').addEventListener('keydown',function(e){if(e.key==='Escape')closeSearch();});
+    if(window._lsPhase)window._lsPhase(2,'BUILDING SCENE',97);
+    setTimeout(function(){
+      // Step 2: background stars + object scene — go live WITHOUT bloom
+      lastFrameTime=performance.now()*.001;
+      initBgStars();
+      setMode('stars');
+      animate(); // composer=null here → uses renderer.render(), no freeze
+      var total=STARS.length+PLANETS.length+EXOPLANETS.length+BLACKHOLES.length+
+        SUPERNOVAE_OBJ.length+NEBULAE.length+CLUSTERS.length+PULSARS.length+GALAXY.length+DEEP_UNI.length;
+      document.getElementById('obj-count').textContent=total.toLocaleString()+' objects · 10k bg stars';
+      if(window._lsPhase)window._lsPhase(3,'ONLINE',100);
+      var ls=document.getElementById('ls');
+      if(ls){setTimeout(function(){ls.style.opacity='0';setTimeout(function(){ls.remove();},700);},400);}
+      // Step 3: compile bloom shaders 2s after loading screen hides — invisible to user
+      setTimeout(initBloom,2200);
+    },50);
+  },50);
 }
 if(window._lsPhase)window._lsPhase(2,'BUILDING SCENE',92);
-requestAnimationFrame(function(){requestAnimationFrame(function(){
-  init();
-});});
+setTimeout(function(){init();},50);
 
 </script>
 </body>
