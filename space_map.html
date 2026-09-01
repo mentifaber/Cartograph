@@ -2844,57 +2844,55 @@ function animate(){
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 function init(){
-  // Step 1: core renderer/scene/camera — fast
-  scene=new THREE.Scene();scene.background=new THREE.Color(0x000008);
-  camera=new THREE.PerspectiveCamera(55,window.innerWidth/window.innerHeight,0.001,50000000);
-  camera.position.set(0,40,100);
-  renderer=new THREE.WebGLRenderer({antialias:!isMobile,preserveDrawingBuffer:true});
-  renderer.setPixelRatio(isMobile?1:Math.min(window.devicePixelRatio,2));
-  renderer.setSize(window.innerWidth,window.innerHeight);
-  renderer.domElement.style.pointerEvents='all';
-  document.getElementById('canvas-wrap').appendChild(renderer.domElement);
-  controls=new THREE.OrbitControls(camera,renderer.domElement);
-  controls.enableDamping=true;controls.dampingFactor=0.08;
-  controls.autoRotateSpeed=0.4;controls.enableZoom=true;controls.enablePan=true;
-  controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};
-  if(window._lsPhase)window._lsPhase(2,'COMPILING SHADERS',93);
-  // Yield so 93% actually repaints before shader compilation blocks
+  // Immediately bump to 93% and yield BEFORE any Three.js object creation.
+  // new THREE.WebGLRenderer() is the first slow call — it must not run at 92%.
+  if(window._lsPhase)window._lsPhase(2,'INIT RENDERER',93);
   requestAnimationFrame(function(){requestAnimationFrame(function(){
-    // Step 2: bloom post-processing (shader compilation — heaviest GPU hit)
-    try{
-      const bW=isMobile?Math.floor(window.innerWidth/2):window.innerWidth;
-      const bH=isMobile?Math.floor(window.innerHeight/2):window.innerHeight;
-      composer=new THREE.EffectComposer(renderer);
-      composer.addPass(new THREE.RenderPass(scene,camera));
-      bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(bW,bH),
-        isMobile?0.35:0.5, isMobile?0.5:0.4, 0.08);
-      composer.addPass(bloomPass);
-    }catch(err){
-      console.warn('Bloom post-processing unavailable:',err.message);
-      composer=null;bloomPass=null;
-      document.getElementById('bloom-btn').style.opacity='0.3';
-    }
-    raycaster=new THREE.Raycaster();
-    raycaster.params.Points={threshold:2};mouse=new THREE.Vector2();
-    renderer.domElement.addEventListener('click',onPointerDown);
-    renderer.domElement.addEventListener('touchend',e=>{
-      if(e.changedTouches&&e.changedTouches.length===1){
-        const t=e.changedTouches[0];onPointerDown({clientX:t.clientX,clientY:t.clientY});
-      }
-    });
-    window.addEventListener('resize',onResize);
-    window.addEventListener('keydown',handleKeyDown);
-    document.getElementById('search').addEventListener('keydown',e=>{if(e.key==='Escape')closeSearch();});
-    if(window._lsPhase)window._lsPhase(2,'BUILDING SCENE',96);
-    // Yield so 96% repaints before geometry creation
+    // Step 1: WebGL renderer + scene + camera (WebGL context init can be slow)
+    scene=new THREE.Scene();scene.background=new THREE.Color(0x000008);
+    camera=new THREE.PerspectiveCamera(55,window.innerWidth/window.innerHeight,0.001,50000000);
+    camera.position.set(0,40,100);
+    renderer=new THREE.WebGLRenderer({antialias:!isMobile,preserveDrawingBuffer:true});
+    renderer.setPixelRatio(isMobile?1:Math.min(window.devicePixelRatio,2));
+    renderer.setSize(window.innerWidth,window.innerHeight);
+    renderer.domElement.style.pointerEvents='all';
+    document.getElementById('canvas-wrap').appendChild(renderer.domElement);
+    controls=new THREE.OrbitControls(camera,renderer.domElement);
+    controls.enableDamping=true;controls.dampingFactor=0.08;
+    controls.autoRotateSpeed=0.4;controls.enableZoom=true;controls.enablePan=true;
+    controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};
+    if(window._lsPhase)window._lsPhase(2,'COMPILING SHADERS',96);
     requestAnimationFrame(function(){requestAnimationFrame(function(){
-      // Step 3: background star geometry
-      lastFrameTime=performance.now()*.001;
-      initBgStars();
+      // Step 2: bloom post-processing (shader compilation — heaviest GPU hit)
+      try{
+        const bW=isMobile?Math.floor(window.innerWidth/2):window.innerWidth;
+        const bH=isMobile?Math.floor(window.innerHeight/2):window.innerHeight;
+        composer=new THREE.EffectComposer(renderer);
+        composer.addPass(new THREE.RenderPass(scene,camera));
+        bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(bW,bH),
+          isMobile?0.35:0.5, isMobile?0.5:0.4, 0.08);
+        composer.addPass(bloomPass);
+      }catch(err){
+        console.warn('Bloom post-processing unavailable:',err.message);
+        composer=null;bloomPass=null;
+        document.getElementById('bloom-btn').style.opacity='0.3';
+      }
+      raycaster=new THREE.Raycaster();
+      raycaster.params.Points={threshold:2};mouse=new THREE.Vector2();
+      renderer.domElement.addEventListener('click',onPointerDown);
+      renderer.domElement.addEventListener('touchend',e=>{
+        if(e.changedTouches&&e.changedTouches.length===1){
+          const t=e.changedTouches[0];onPointerDown({clientX:t.clientX,clientY:t.clientY});
+        }
+      });
+      window.addEventListener('resize',onResize);
+      window.addEventListener('keydown',handleKeyDown);
+      document.getElementById('search').addEventListener('keydown',e=>{if(e.key==='Escape')closeSearch();});
       if(window._lsPhase)window._lsPhase(2,'BUILDING SCENE',98);
-      // Yield so 98% repaints before object scene build
       requestAnimationFrame(function(){requestAnimationFrame(function(){
-        // Step 4: build object scene + go live
+        // Step 3: background star geometry + object scene
+        lastFrameTime=performance.now()*.001;
+        initBgStars();
         setMode('stars');
         animate();
         const total=STARS.length+PLANETS.length+EXOPLANETS.length+BLACKHOLES.length+
